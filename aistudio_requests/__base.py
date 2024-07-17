@@ -34,8 +34,8 @@ from string import Template
 
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 
-from src.prompts import DEFAULT_SYSTEM_MESSAGE, DEFAULT_PROMPT
-from src.schemas import PromptTemplate
+from aistudio_requests.prompts import DEFAULT_SYSTEM_MESSAGE, DEFAULT_PROMPT
+from aistudio_requests.schemas import PromptTemplate
 
 
 logger = logging.getLogger()

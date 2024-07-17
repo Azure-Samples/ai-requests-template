@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "ai-request-template"
+name = "aistudio_request"
 version = "0.1.0"
 description = ""
 authors = ["Ricardo Cataldi <rcataldi@microsoft.com>"]
 readme = "README.md"
-packages = [{include = "*", from="src"}]
+packages = [{include = "aistudio_requests"}]
 
 
 [tool.poetry.dependencies]

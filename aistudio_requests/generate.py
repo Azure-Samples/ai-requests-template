@@ -18,7 +18,7 @@ import json
 from string import Template
 from typing import Dict, List, Union
 
-from src.schemas import (
+from aistudio_requests.schemas import (
     AzureAIMessage,
     AzureAIRequest,
     AzureAITool,
@@ -26,8 +26,8 @@ from src.schemas import (
     PromptTemplate
 )
 
-from src.__base import BaseGenerator
-from src.prompts import DEFAULT_SYSTEM_MESSAGE
+from aistudio_requests.__base import BaseGenerator
+from aistudio_requests.prompts import DEFAULT_SYSTEM_MESSAGE
 
 
 logger = logging.getLogger()
