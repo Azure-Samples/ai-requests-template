@@ -1,57 +1,39 @@
-# Project Name
+# Azure AI Studio Simple Interface Manager for Python
 
-(short, 1-3 sentenced, description of the project)
+/**
+ * This repository provides overall capabilities for standardizing REST API requests
+ * to deployed models and apps on Azure AI Studio.
+ */
 
 ## Features
 
 This project framework provides the following features:
 
-* Feature 1
-* Feature 2
-* ...
+* Simple interfaces for validating request bodies to Azure AI Studio Endpoints
+* Integration with Azure Monitor
+* Set of examples for implementation
 
 ## Getting Started
 
 ### Prerequisites
 
-(ideally very short, if any)
-
-- OS
-- Library version
-- ...
+- All OSs
+- No large dependencies
+- All Python versions up to 3.13
 
 ### Installation
 
 (ideally very short)
 
-- npm install [package name]
-- mvn install
-- ...
+- just run the file .py-conf/conf-env.ps1
 
 ### Quickstart
-(Add steps to get up and running quickly)
 
-1. git clone [repository clone url]
-2. cd [repository name]
-3. ...
-
-
-## Demo
-
-A demo app is included to show how to use the project.
-
-To run the demo, follow these steps:
-
-(Add steps to start up the demo)
-
-1.
-2.
-3.
+1. git clone https://github.com/Azure-Samples/ai-requests-template
+2. cd ai-requests-template
+3. .py-conf/conf-env.ps1
 
 ## Resources
 
-(Any additional resources or related projects)
-
-- Link to supporting information
-- Link to similar sample
-- ...
+You should install this as a python package on the projects you are using Azure AI Endpoints.
+just "pip install https://github.com/Azure-Samples/ai-requests-template/aistudio_request.whl"
