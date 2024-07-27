@@ -34,7 +34,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra -q -s"
-testpaths = ["tools",]
+testpaths = ["tests",]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -52,7 +52,7 @@ load-plugins = ["pylint.extensions.mccabe", ]
 
 [tool.black]
 line-length = 100
-target-version = ['py310', 'py311']
+target-version = ['py39', 'py310', 'py311']
 include = '\.pyi?$'
 exclude = '(\.git | \.hg | \.mypy_cache | \.tox | \.venv | _build | buck-out | build | dist )/'
 

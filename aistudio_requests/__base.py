@@ -21,22 +21,18 @@ Dependencies:
 - opencensus.ext.azure: For logging and monitoring with Azure.
 """
 
-
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import Optional, Dict
-
-import logging
-import httpx
 import asyncio
-from string import Template
+import logging
+from abc import ABC, abstractmethod
+from typing import Dict, Optional, Type
 
+import httpx
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 
-from aistudio_requests.prompts import DEFAULT_SYSTEM_MESSAGE, DEFAULT_PROMPT
+from aistudio_requests.prompts import DEFAULT_PROMPT, DEFAULT_SYSTEM_MESSAGE
 from aistudio_requests.schemas import PromptTemplate
-
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -68,19 +64,13 @@ class BaseGenerator(ABC):
         self.aistudio_url = aistudio_url
         self.aistudio_key = aistudio_key
         self.__system_message: str = DEFAULT_SYSTEM_MESSAGE
+        self.__prompt_template: str = DEFAULT_PROMPT
         if az_monitor:
             logger.addHandler(AzureLogHandler(connection_string=az_monitor))
         self.waiting_time = 1
         self.http_client = httpx.AsyncClient(timeout=20000)
 
-    async def __call__(
-            self,
-            prompt: str,
-            streaming: bool = False,
-            complete_response: bool = False,
-            *args,
-            **kwds
-        ):
+    async def __call__(self, template: Type, complete_response: bool = False, **kwargs):
         """
         Template method to retrieve context and history, prepare the request, and send it.
 
@@ -90,14 +80,18 @@ class BaseGenerator(ABC):
         Returns:
             The response from the AI Studio service.
         """
-        context = await self.retrieve_context()
-        history = await self.retrieve_history()
-        prompt=Template(DEFAULT_PROMPT).safe_substitute(
-            prompt=prompt,
-            context=context,
-            history=history
-        )
-        return await self.send_request(prompt, stream=streaming, complete_response=complete_response, *args, **kwds)
+        if not isinstance(template, PromptTemplate) and not issubclass(
+            type(template), PromptTemplate
+        ):
+            raise AttributeError(
+                "The template should be an instance of PromptTemplate or of one of its Subclasses."
+            )
+
+        template.history = await self.retrieve_history()
+        template.context = await self.retrieve_context()
+        prompt = await self.prepare_request(template)
+
+        return await self.send_request(prompt, complete_response=complete_response, **kwargs)
 
     async def _stream_url(self, url, method, data=None):
         """
@@ -226,6 +220,33 @@ class BaseGenerator(ABC):
         """
         self.__system_message = DEFAULT_SYSTEM_MESSAGE
 
+    @property
+    def prompt_template(self) -> str:
+        """
+        Get the system message.
+
+        Returns:
+            str: The current system message.
+        """
+        return self.__prompt_template
+
+    @prompt_template.setter
+    def prompt_template(self, message: str) -> None:
+        """
+        Set a new system message.
+
+        Args:
+            message (str): The new system message.
+        """
+        self.__prompt_template = message
+
+    @prompt_template.deleter
+    def prompt_template(self) -> None:
+        """
+        Reset the system message to the default value.
+        """
+        self.__prompt_template = DEFAULT_PROMPT
+
     async def close(self) -> None:
         """
         Close the HTTP client.
@@ -255,14 +276,14 @@ class BaseGenerator(ABC):
         """
 
     @abstractmethod
-    async def prepare_request(self, prompt_template: PromptTemplate) -> str:
+    async def prepare_request(self, prompt_template: Type) -> str:
         """
         Abstract method to prepare the request to Azure AI Studio.
 
         Constructs the query request based on given parameters.
 
         Args:
-            prompt_template (PromptTemplate): The prompt text to generate the query.
+            prompt_template (Type): The prompt text to generate the query.
 
         Returns:
             str: The prepared prompt request as a string.
@@ -275,7 +296,6 @@ class BaseGenerator(ABC):
         parameters: Dict[str, str | float | int],
         *,
         complete_response: bool = False,
-        stream: bool = False
     ) -> dict:
         """
         Abstract method to send the request to the model endpoint.

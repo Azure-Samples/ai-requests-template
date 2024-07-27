@@ -20,10 +20,9 @@ Classes:
 - PromptTemplate: Defines the template for prompts, including optional function names.
 """
 
-
 from typing import Any, Dict, List, Literal, Optional, Union
-from pydantic import BaseModel, Field, field_validator
 
+from pydantic import BaseModel, Field, field_validator
 
 CONTENT_TYPE = List[Dict[str, Union[str, Dict[str, str]]]]
 
@@ -37,6 +36,7 @@ class AzureAIMessage(BaseModel):
         content (CONTENT_TYPE): The content of the message, which is a list of dictionaries containing
                                 strings or nested dictionaries.
     """
+
     role: Literal["system", "user"]
     content: CONTENT_TYPE
 
@@ -51,6 +51,7 @@ class AzureDataSource(BaseModel):
         type (str): The type of the data source.
         parameters (Dict[str, Any]): Parameters required to access or use the data source.
     """
+
     type: str
     parameters: Dict[str, Any]
 
@@ -66,6 +67,7 @@ class AzureAIFunction(BaseModel):
         description (Optional[str]): An optional description of the function.
         parameters (Dict[str, Any]): Parameters required to call the function.
     """
+
     name: str
     description: Optional[str]
     parameters: Dict[str, Any]
@@ -81,6 +83,7 @@ class AzureAITool(BaseModel):
         type (str): The type of the tool.
         function (AzureAIFunction): The function associated with the tool.
     """
+
     type: str
     function: AzureAIFunction
 
@@ -158,7 +161,9 @@ class AzureAIRequest(BaseModel):
             ValueError: If the value is not between 1 and 128 inclusive.
         """
         if not value in list(range(1, 128)):
-            raise ValueError("The maximum value of completions generated should be 128, while the minimum is 1.")
+            raise ValueError(
+                "The maximum value of completions generated should be 128, while the minimum is 1."
+            )
         return value
 
 
@@ -170,8 +175,10 @@ class PromptTemplate(BaseModel):
         prompt (str): The prompt text for the query.
         function_name (Optional[str]): The name of the function to be applied to this workload. Defaults to None.
     """
+
     prompt: str = Field(..., description="The prompt used for the question.")
+    history: Optional[str] = Field(default=None, description="The chat history, if Any.")
+    context: Optional[str] = Field(default=None, description="The context for the request, if Any.")
     function_name: Optional[str] = Field(
-        default=None,
-        description="The function name that should be applied on this workload."
+        default=None, description="The function name that should be applied on this workload."
     )

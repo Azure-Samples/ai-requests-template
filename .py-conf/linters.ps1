@@ -1,3 +1,7 @@
 $rootDir = git rev-parse --show-toplevel
-Get-ChildItem -Path $rootDir -Include *.py -Recurse | ForEach-Object {black --config pyproject.toml $_.FullName}
-Get-ChildItem -Path $rootDir -Include *.py -Recurse | ForEach-Object {pylint --rcfile=pyproject.toml $_.FullName}
+$project_path = Read-Host "Enter project path:"
+$rootDir = Join-Path -Path $rootDir -ChildPath $project_path
+
+isort --sp=pyproject.toml $rootDir
+black --config pyproject.toml $rootDir
+pylint --rcfile=pyproject.toml $rootDir

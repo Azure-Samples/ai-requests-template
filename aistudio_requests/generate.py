@@ -13,22 +13,14 @@ It also demonstrates best practices in async programming, error handling, and in
 
 from __future__ import annotations
 
-import logging
 import json
+import logging
 from string import Template
-from typing import Dict, List, Union
-
-from aistudio_requests.schemas import (
-    AzureAIMessage,
-    AzureAIRequest,
-    AzureAITool,
-    AzureAIFunction,
-    PromptTemplate
-)
+from typing import Dict, List, Optional, Union
 
 from aistudio_requests.__base import BaseGenerator
 from aistudio_requests.prompts import DEFAULT_SYSTEM_MESSAGE
-
+from aistudio_requests.schemas import AzureAIFunction, AzureAIMessage, AzureAIRequest, AzureAITool
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -49,10 +41,11 @@ class PromptGenerator(BaseGenerator):
 
     async def send_request(
         self,
-        prompt_template: PromptTemplate,
+        prompt: str,
         parameters: Dict[str, Union[str, float, int]],
         *,
-        complete_response: bool = False
+        complete_response: bool = False,
+        **kwargs,
     ):
         """
         Asynchronously send a request to the Azure AI Studio using the provided parameters.
@@ -67,10 +60,6 @@ class PromptGenerator(BaseGenerator):
             str: The result of the prompt from the Azure AI Studio, or None if the request was unsuccessful.
         """
 
-        prompt_request: str = await self.prepare_request(prompt_template)
-        if not prompt_request:
-            return None
-
         messages: List[AzureAIMessage] = [
             AzureAIMessage(
                 role="system",
@@ -78,30 +67,25 @@ class PromptGenerator(BaseGenerator):
             ),
             AzureAIMessage(
                 role="user",
-                content=[{"type": "text", "text": prompt_request}],
+                content=[{"type": "text", "text": prompt}],
             ),
         ]
 
         logger.debug("Sending query to Azure AI Service. Messages: %s \n", messages)
-
         data = AzureAIRequest(messages=messages, **parameters)  # type: ignore
-
         json_data = data.model_dump(exclude_unset=True, exclude_none=True)
-
         logger.debug("Sending data to Azure AI Studio. Data: %s \n", json_data)
 
-        response = await self._request_url(
-            method="post",
-            url=self.aistudio_url,
-            data=json_data
-        )
+        response = await self._request_url(method="post", url=self.aistudio_url, data=json_data)
 
         logger.info(
             "Query successfully generated. Resources used: %s",
-            str({
-                "model": response.get("model", ""),
-                **response.get("usage", {}),
-            }),
+            str(
+                {
+                    "model": response.get("model", ""),
+                    **response.get("usage", {}),
+                }
+            ),
         )
 
         if not complete_response:
@@ -109,7 +93,7 @@ class PromptGenerator(BaseGenerator):
         return response
 
 
-class FunctionCallingGenerator(PromptGenerator):
+class FunctionCallingGenerator(BaseGenerator):
     """
     A concrete implementation of the PromptGenerator, tailored for the usage of functions and tools
     by the LLM.
@@ -117,36 +101,51 @@ class FunctionCallingGenerator(PromptGenerator):
     Methods:
         prepare_request(prompt: PromptTemplate) -> str
             Prepares the request for the Azure AI Studio.
-        
+
         send_request(prompt_template: PromptTemplate, parameters: Dict[str, Union[str, float, int]]) -> PromptTemplate
             Asynchronously sends a request to the Azure AI Studio using the provided parameters.
     """
 
-    async def prepare_request(
-        self,
-        prompt: PromptTemplate
-    ) -> str:
+    def __init__(self, aistudio_url: str, aistudio_key: str, az_monitor: str | None = None) -> None:
+        super().__init__(aistudio_url, aistudio_key, az_monitor)
+        self._functions: Optional[List[AzureAIFunction]] = None
+
+    @property
+    def functions(self) -> List[AzureAIFunction]:
         """
-        Prepare the request for the Azure AI Studio.
-
-        Constructs the query request based on the given prompt template.
-
-        Args:
-            prompt (PromptTemplate): The prompt template containing the initial prompt.
+        Get the system message.
 
         Returns:
-            str: The prepared query request as a string.
+            str: The current system message.
         """
-        query_request = """
-            Based on the theme $prompt, generate a question, a groundtruth answer, and an answer that has '50%' chance to be correct.
+        if self._functions is None:
+            raise AttributeError("Function Calling should be provided for the request of the .")
+        return self._functions
+
+    @functions.setter
+    def functions(self, function_calls: List[AzureAIFunction]) -> None:
         """
-        return Template(query_request).safe_substitute(prompt=prompt.prompt, function_name=prompt.function_name)
+        Set a new system message.
+
+        Args:
+            message (str): The new system message.
+        """
+        self._functions = function_calls
+
+    @functions.deleter
+    def functions(self) -> None:
+        """
+        Reset the system message to the default value.
+        """
+        self._functions = None
 
     async def send_request(
         self,
-        prompt_template: PromptTemplate,
-        parameters: Dict[str, Union[str, float, int]]
-    ) -> PromptTemplate:
+        prompt: str,
+        parameters: Dict[str, str | float | int],
+        *,
+        complete_response: bool = False,
+    ) -> dict:
         """
         Asynchronously send a request to the Azure AI Studio using the provided parameters.
         Constructs and sends the prompt request and processes the response.
@@ -162,11 +161,14 @@ class FunctionCallingGenerator(PromptGenerator):
             ValueError: If the prompt request could not be generated.
         """
 
-        prompt_request: str = await self.prepare_request(prompt_template)
-        if not prompt_request:
-            raise ValueError("Prompt request could not be generated.")
-        
-        self.system_message = Template(DEFAULT_SYSTEM_MESSAGE).safe_substitute(functions="PromptTemplate")
+        if self.functions is None:
+            raise AttributeError(
+                "Function Calling should be provided for the request of the FunctionCallingGenerator."
+            )
+
+        self.system_message = Template(DEFAULT_SYSTEM_MESSAGE).safe_substitute(
+            functions="PromptTemplate"
+        )
 
         messages: List[AzureAIMessage] = [
             AzureAIMessage(
@@ -175,39 +177,32 @@ class FunctionCallingGenerator(PromptGenerator):
             ),
             AzureAIMessage(
                 role="user",
-                content=[{"type": "text", "text": prompt_request}],
+                content=[{"type": "text", "text": prompt}],
             ),
         ]
 
-        tools = [AzureAITool(
-            type='function',
-            function=AzureAIFunction(
-                name="PromptTemplate",
-                description="Format the prompt in a proper QnA JSON format.",
-                parameters=PromptTemplate.model_json_schema()
-            )
-        ),]
+        tools = [
+            AzureAITool(type="function", function=rag_function) for rag_function in self.functions
+        ]
 
         logger.debug("Sending query to Azure AI Studio. Messages: %s \n", messages)
         data = AzureAIRequest(messages=messages, tools=tools, **parameters)  # type: ignore
         json_data = data.model_dump(exclude_unset=True, exclude_none=True)
         logger.debug("Sending data to Azure AI Studio. Data: %s \n", json_data)
 
-        response = await self._request_url(
-            method="post",
-            url=self.aistudio_url,
-            data=json_data
-        )
+        response = await self._request_url(method="post", url=self.aistudio_url, data=json_data)
 
         logger.info(
             "Query successfully generated. Resources used: %s",
-            str({
-                "model": response.get("model", ""),
-                **response.get("usage", {}),
-            }),
+            str(
+                {
+                    "model": response.get("model", ""),
+                    **response.get("usage", {}),
+                }
+            ),
         )
 
         tool_calls = response.get("choices", [])[0].get("message", {}).get("tool_calls", [])
         arguments = json.loads(tool_calls[0].get("function", {}).get("arguments", {}))
-        
-        return PromptTemplate(**arguments)
+
+        return arguments
