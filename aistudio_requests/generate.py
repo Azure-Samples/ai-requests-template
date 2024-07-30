@@ -44,8 +44,7 @@ class PromptGenerator(BaseGenerator):
         prompt: str,
         parameters: Dict[str, Union[str, float, int]],
         *,
-        complete_response: bool = False,
-        **kwargs,
+        complete_response: bool = False
     ):
         """
         Asynchronously send a request to the Azure AI Studio using the provided parameters.
@@ -95,8 +94,7 @@ class PromptGenerator(BaseGenerator):
 
 class FunctionCallingGenerator(BaseGenerator):
     """
-    A concrete implementation of the PromptGenerator, tailored for the usage of functions and tools
-    by the LLM.
+    A abstract class to interact with models that have function call, tailored for the usage of functions and tools by the LLM.
 
     Methods:
         prepare_request(prompt: PromptTemplate) -> str
@@ -182,7 +180,7 @@ class FunctionCallingGenerator(BaseGenerator):
         ]
 
         tools = [
-            AzureAITool(type="function", function=rag_function) for rag_function in self.functions
+            AzureAITool(type="function", function=_func) for _func in self.functions
         ]
 
         logger.debug("Sending query to Azure AI Studio. Messages: %s \n", messages)
@@ -190,7 +188,11 @@ class FunctionCallingGenerator(BaseGenerator):
         json_data = data.model_dump(exclude_unset=True, exclude_none=True)
         logger.debug("Sending data to Azure AI Studio. Data: %s \n", json_data)
 
-        response = await self._request_url(method="post", url=self.aistudio_url, data=json_data)
+        response = await self._request_url(
+            method="post",
+            url=self.aistudio_url,
+            data=json_data
+        )
 
         logger.info(
             "Query successfully generated. Resources used: %s",
@@ -201,6 +203,9 @@ class FunctionCallingGenerator(BaseGenerator):
                 }
             ),
         )
+
+        if complete_response:
+            return response
 
         tool_calls = response.get("choices", [])[0].get("message", {}).get("tool_calls", [])
         arguments = json.loads(tool_calls[0].get("function", {}).get("arguments", {}))

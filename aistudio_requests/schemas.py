@@ -20,8 +20,8 @@ Classes:
 - PromptTemplate: Defines the template for prompts, including optional function names.
 """
 
-from typing import Any, Dict, List, Literal, Optional, Union
-
+import inspect
+from typing import Any, Dict, List, Literal, Optional, Union, Callable
 from pydantic import BaseModel, Field, field_validator
 
 CONTENT_TYPE = List[Dict[str, Union[str, Dict[str, str]]]]
@@ -71,6 +71,42 @@ class AzureAIFunction(BaseModel):
     name: str
     description: Optional[str]
     parameters: Dict[str, Any]
+
+    @classmethod
+    def from_python_function(cls, func: Callable) -> "AzureAIFunction":
+        """
+        Create an AzureAIFunction instance from a Python callable object.
+
+        Args:
+            function (Callable): The Python callable object to create an AzureAIFunction from.
+
+        Returns:
+            AzureAIFunction: The AzureAIFunction instance created from the Python function.
+        """
+
+        sig = inspect.signature(func)
+        base_params = sig.parameters
+        param_types = {}
+        required = []
+        for name, param in base_params.items():
+            if param.annotation != inspect.Parameter.empty:
+                param_types[name] = {
+                    "type": "string",
+                    "description": param.annotation.__doc__,
+                }
+                if param.default == inspect.Parameter.empty:
+                    required.append(name)
+
+        if not param_types:
+            raise AttributeError("No static types found. Your callable must implement static types on the call parameters.")
+
+        parameters = {
+            "type": "object",
+            "required": required,
+            "properties": param_types
+        }
+
+        return cls(name=str(func.__name__), description=str(func.__doc__), parameters=parameters)
 
 
 class AzureAITool(BaseModel):

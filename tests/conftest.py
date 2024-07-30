@@ -12,8 +12,8 @@ dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 
 load_dotenv(dotenv_path)
 
-url: str = os.environ.get("GPT4V_URL", "")
-key: str = os.environ.get("GPT4V_KEY", "")
+url: str = os.environ.get("GPT4O_URL", "")
+key: str = os.environ.get("GPT4O_KEY", "")
 az_monitor: str = os.environ.get("AZ_CONNECTION_LOG", "")
 
 
