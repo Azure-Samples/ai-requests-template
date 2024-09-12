@@ -164,10 +164,6 @@ class FunctionCallingGenerator(BaseGenerator):
                 "Function Calling should be provided for the request of the FunctionCallingGenerator."
             )
 
-        self.system_message = Template(DEFAULT_SYSTEM_MESSAGE).safe_substitute(
-            functions="PromptTemplate"
-        )
-
         messages: List[AzureAIMessage] = [
             AzureAIMessage(
                 role="system",
